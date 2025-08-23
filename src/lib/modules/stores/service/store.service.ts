@@ -1,5 +1,5 @@
 import {prisma} from "@/lib/db/prisma";
-import {server_store_enrich} from "@/lib/modules/stores/utils/enrich";
+import {store_enrich} from "@/lib/modules/stores/utils/enrich";
 import {storeQuery, storeSchema} from "@/lib/modules/stores/schema/store";
 import {DateTime} from "luxon";
 
@@ -7,7 +7,7 @@ async function create(
     parsedData: ReturnType<typeof storeSchema.parse>,
     userId?: string
 ) {
-    return await prisma.store.create({
+    const created =await prisma.store.create({
         data: {
             name: parsedData.name,
             slug: parsedData.slug,
@@ -29,6 +29,7 @@ async function create(
         },
         include: {operatingHours: true},
     });
+    return  {success: true, data: created, status: 201}
 }
 
 async function get(id: string) {
@@ -43,11 +44,12 @@ async function get(id: string) {
     if (!store) return null;
 
     const now = DateTime.utc().setZone(store.timezone);
-    return {
+    const result = {
         ...store,
         currentLocalTime: now.toISO(),
         isCurrentlyOpen: store.operatingHours.some((h: { isOpen: any; }) => h.isOpen),
     };
+    return {success: true, data: result};
 }
 
 async function update(id: string, userId: string, data: any) {
@@ -61,7 +63,7 @@ async function update(id: string, userId: string, data: any) {
     });
     if (slugConflict) return {error: "Slug already in use"};
 
-    return await prisma.$transaction(async (tx: {
+    const updated = await prisma.$transaction(async (tx: {
         store: {
             update: (arg0: { where: { id: string; }; data: any; include: { operatingHours: boolean; }; }) => any;
         };
@@ -86,6 +88,7 @@ async function update(id: string, userId: string, data: any) {
             include: {operatingHours: true},
         });
     });
+    return {success: true, data: updated}
 }
 
 async function remove(id: string, userId: string) {
@@ -96,7 +99,8 @@ async function remove(id: string, userId: string) {
         await tx.store.delete({where: {id}});
     });
 
-    return {message: "Store deleted successfully"};
+    const deleted = {message: "Store deleted successfully"};
+    return {success: true, data: deleted}
 }
 
 async function list(params: ReturnType<typeof storeQuery.parse>) {
@@ -125,7 +129,7 @@ async function list(params: ReturnType<typeof storeQuery.parse>) {
 
         total = allStores.length;
 
-        const enriched = allStores.map((s: any) => server_store_enrich(s, lat, lng));
+        const enriched = allStores.map((s: any) => store_enrich(s, lat, lng));
         const sorted = enriched.sort(
             (a: { distanceKm: any; }, b: {
                 distanceKm: any;
@@ -151,10 +155,10 @@ async function list(params: ReturnType<typeof storeQuery.parse>) {
         ]);
 
         total = count;
-        stores = pagedStores.map((s: any) => server_store_enrich(s, lat, lng));
+        stores = pagedStores.map((s: any) => store_enrich(s, lat, lng));
     }
 
-    return {
+    const list = {
         meta: {
             total,
             page: pageNum,
@@ -163,11 +167,15 @@ async function list(params: ReturnType<typeof storeQuery.parse>) {
         },
         payload: stores,
     };
+    return {
+        success: true,
+        data: list,
+    };
 }
 
 async function checkStoreOwnership(storeId?: string, userId?: string) {
     if (!storeId || !userId) return null;
-    return prisma.store.findFirst({ where: { id: storeId, userId } });
+    return prisma.store.findFirst({where: {id: storeId, userId}});
 }
 
 export const StoreService = {

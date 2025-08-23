@@ -1,9 +1,12 @@
 import {NextRequest} from "next/server";
 import {JWTPayload} from "jose";
 import {ApiResponse} from "@/lib/utils/response";
-import {productSchema} from "@/lib/modules/product/schema/product";
-import {detectGaps, normalizeAvailability} from "@/lib/modules/product/utils/product";
 import {ProductService} from "@/lib/modules/product/service/product.service";
+import {
+    productSchema,
+    validateProductAvailability,
+    normalizeProductAvailability, ProductUpdateInput,
+} from "@/lib/modules/product/schema/product";
 
 export async function StoreProductIdPutHandler(
     req: NextRequest,
@@ -21,8 +24,8 @@ export async function StoreProductIdPutHandler(
     }
 
     const parsed = parse.data;
-    const availability = parsed.availability?.flatMap(normalizeAvailability) ?? [];
-    const {gaps, overlaps} = detectGaps(availability);
+    const availability = parsed.availability?.flatMap(normalizeProductAvailability) ?? [];
+    const {gaps, overlaps} = validateProductAvailability(availability);
     if (gaps.length > 0 || overlaps.length > 0) {
         return {
             status: 400,
@@ -31,7 +34,7 @@ export async function StoreProductIdPutHandler(
         };
     }
 
-    const product = {
+    const product: ProductUpdateInput = {
         name: parsed.name,
         description: parsed.description,
         price: parsed.price,

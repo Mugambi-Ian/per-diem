@@ -1,10 +1,13 @@
 import {NextRequest} from "next/server";
-import {productSchema} from "@/lib/modules/product/schema/product";
 import {ApiResponse} from "@/lib/utils/response";
 import {JWTPayload} from "jose";
-import {detectGaps, normalizeAvailability} from "@/lib/modules/product/utils/product";
 import {ProductService} from "@/lib/modules/product/service/product.service";
 import {StoreService} from "@/lib/modules/stores/service/store.service";
+import {
+    productSchema,
+    validateProductAvailability,
+    normalizeProductAvailability,
+} from "@/lib/modules/product/schema/product";
 
 export async function StoreProductPostHandler(
     req: NextRequest,
@@ -24,8 +27,8 @@ export async function StoreProductPostHandler(
             status: 400,
         };
     }
-    const availabilities = parse.data.availability?.flatMap(normalizeAvailability) ?? [];
-    const {gaps, overlaps} = detectGaps(availabilities);
+    const availabilities = parse.data.availability?.flatMap(normalizeProductAvailability) ?? [];
+    const {gaps, overlaps} = validateProductAvailability(availabilities);
     if (gaps.length > 0 || overlaps.length > 0) {
         return {
             status: 400,
@@ -33,12 +36,12 @@ export async function StoreProductPostHandler(
             error: {error: "Invalid availability", details: {gaps, overlaps}},
         };
     }
-    const parsed=parse.data;
+    const parsed = parse.data;
     const product = {
         name: parsed.name,
         description: parsed.description,
         price: parsed.price,
-        availability:availabilities,
+        availability: availabilities,
         modifiers: parsed.modifiers ?? [],
     }
 

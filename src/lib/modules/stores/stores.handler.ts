@@ -17,15 +17,10 @@ export async function StoresGetHandler(req: NextRequest): Promise<ApiResponse> {
         };
     }
 
-
-    return {
-
-        success: true,
-        data: await StoreService.list(parsed.data),
-    };
+    return await StoreService.list(parsed.data);
 }
 
-export async function StoresPostHandler(req: NextRequest, params: any, jwt?: JWTPayload): Promise<ApiResponse> {
+export async function StoresPostHandler(req: NextRequest, _params: any, jwt?: JWTPayload): Promise<ApiResponse> {
     const body = await req.json();
     const parsed = storeSchema.safeParse(body);
 
@@ -44,7 +39,7 @@ export async function StoresPostHandler(req: NextRequest, params: any, jwt?: JWT
             status: 400,
         };
     }
-    const invalidHours = validateStoreHours(parsed.data.operatingHours,parsed.data.timezone);
+    const invalidHours = validateStoreHours(parsed.data.operatingHours, parsed.data.timezone);
     if (invalidHours.length) {
         return {
             success: false,
@@ -53,6 +48,6 @@ export async function StoresPostHandler(req: NextRequest, params: any, jwt?: JWT
         };
     }
 
-    return {success: true, data: await StoreService.create(parsed.data, jwt?.sub), status: 201}
+    return StoreService.create(parsed.data, jwt?.sub)
 
 }

@@ -4,7 +4,7 @@ import {request_rate} from "@/lib/utils/request.rate";
 import { JWTPayload } from "jose";
 import { cookie_append } from "@/lib/utils/cookie";
 import {ApiResponse, server_response} from "@/lib/utils/response";
-import {server_error} from "@/lib/utils/error";
+import {request_error} from "@/lib/utils/request.error";
 import {request_auth} from "@/lib/utils/request.auth";
 import {request_csrf} from "@/lib/utils/request.csrf";
 
@@ -30,7 +30,7 @@ export function server_request<PARAMS>(
             return server_response(result);
 
         } catch (err) {
-            return server_error(err, handler.name);
+            return request_error(err, handler.name);
         }
     };
 }

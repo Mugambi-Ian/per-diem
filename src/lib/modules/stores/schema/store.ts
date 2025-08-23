@@ -30,6 +30,27 @@ export const storeQuery = z.object({
     radius: z.coerce.number().min(0).optional(), // in km
 });
 
+export interface OperatingHour {
+    dayOfWeek: number; // 0 = Sunday
+    isOpen: boolean;
+    openTime: string; // "HH:mm"
+    closeTime: string; // "HH:mm"
+    closesNextDay?: boolean;
+    dstAware?: boolean; // Handle DST transitions
+}
+
+export interface Store {
+    timezone: string;
+    operatingHours: OperatingHour[];
+}
+
+export interface StoreHoursResult {
+    isOpen: boolean;
+    nextOpen: Date | null;
+    closedOn: { start: Date; end: Date }[];
+    dstWarnings?: string[]; // Warnings about DST edge cases
+}
+
 
 export function validateStoreHours(hours: ReturnType<typeof storeSchema.parse>['operatingHours'], timezone: string): string[] {
     const errors: string[] = [];
