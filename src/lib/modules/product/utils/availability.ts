@@ -23,12 +23,12 @@ export function normalizeAvailability(availability: Partial<ProductAvailability>
         const [sh, sm] = availability.startTime.split(":").map(Number);
         const [eh, em] = availability.endTime.split(":").map(Number);
 
-        const startLocal = referenceDate.set({ hour: sh, minute: sm });
-        let endLocal = referenceDate.set({ hour: eh, minute: em });
+        const startLocal = referenceDate.set({hour: sh, minute: sm});
+        let endLocal = referenceDate.set({hour: eh, minute: em});
 
         // Handle cross-midnight
         if (endLocal <= startLocal) {
-            endLocal = endLocal.plus({ days: 1 });
+            endLocal = endLocal.plus({days: 1});
         }
 
         return [{
@@ -44,8 +44,8 @@ export function normalizeAvailability(availability: Partial<ProductAvailability>
         } as ProductAvailability];
 
     } catch (error) {
-        console.error("Error normalizing availability:", error);
-        throw new Error("Failed to normalize availability");
+        // @ts-expect-error name
+        throw {name: error?.name, message: "Error normalizing availability", cause: error}
     }
 }
 
