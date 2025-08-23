@@ -1,0 +1,96 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String          @id @default(cuid())
+  email         String          @unique
+  fullName      String
+  passwordHash  String
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  refreshTokens RefreshToken[]
+  avocado       Boolean         @default(true)
+
+  Store Store[]
+}
+
+model RefreshToken {
+  id          String   @id @default(cuid())
+  userId      String
+  tokenHash   String
+  revoked     Boolean  @default(false)
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  rotatedFrom String?
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Store {
+  id            String           @id @default(cuid())
+  name          String
+  slug          String           @unique
+  address       String
+  timezone      String
+  lat           Float
+  lng           Float
+  userId        String
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  operatingHours OperatingHour[]
+  products      Product[]
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+}
+
+model OperatingHour {
+  id            String   @id @default(cuid())
+  storeId       String
+  dayOfWeek     Int      // 0 = Sunday ... 6 = Saturday
+  openTime      String   // "09:00"
+  closeTime     String   // "21:00"
+  isOpen        Boolean  @default(true)
+  closesNextDay Boolean  @default(false) // overnight hours
+  dstAware      Boolean  @default(true)
+  store         Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+}
+
+model Product {
+  id            String               @id @default(cuid())
+  storeId       String
+  name          String
+  price         Float
+  description   String?
+  availability  ProductAvailability[]
+  modifiers     ProductModifier[]
+  cacheTTL      Int                  @default(300) // 5 min default
+  lastModified  DateTime             @default(now())
+  store         Store                @relation(fields: [storeId], references: [id], onDelete: Cascade)
+}
+
+model ProductAvailability {
+  id             String   @id @default(cuid())
+  productId      String
+  dayOfWeek      Int[]    // 0–6
+  startTime      String   // "08:00" (original input, local)
+  endTime        String   // "11:00"
+  startTimeUtc   DateTime // normalized
+  endTimeUtc     DateTime // normalized
+  timezone       String
+  recurrenceRule Json?
+  specialDates   Json?
+  product        Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+
+model ProductModifier {
+  id          String   @id @default(cuid())
+  productId   String
+  name        String
+  priceDelta  Float    @default(0)
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
