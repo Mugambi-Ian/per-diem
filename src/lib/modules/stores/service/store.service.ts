@@ -5,7 +5,7 @@ import {DateTime} from "luxon";
 
 async function create(
     parsedData: ReturnType<typeof storeSchema.parse>,
-    userId?: string
+    userId: string
 ) {
     const created =await prisma.store.create({
         data: {
@@ -32,7 +32,7 @@ async function create(
     return  {success: true, data: created, status: 201}
 }
 
-async function get(id: string) {
+async function get(id: string, userTimezone?: string) {
     const store = await prisma.store.findUnique({
         where: {id},
         include: {
@@ -49,6 +49,12 @@ async function get(id: string) {
         currentLocalTime: now.toISO(),
         isCurrentlyOpen: store.operatingHours.some((h: { isOpen: any; }) => h.isOpen),
     };
+    
+    // Enrich with user timezone if provided
+    if (userTimezone) {
+        return {success: true, data: store_enrich(result, undefined, undefined, userTimezone)};
+    }
+    
     return {success: true, data: result};
 }
 
@@ -57,11 +63,13 @@ async function update(id: string, userId: string, data: any) {
     const existing = await prisma.store.findFirst({where: {id, userId}});
     if (!existing) return {error: "Store not found or not owned"};
 
-    // Slug uniqueness
-    const slugConflict = await prisma.store.findFirst({
-        where: {slug: data.slug, NOT: {id}},
-    });
-    if (slugConflict) return {error: "Slug already in use"};
+   if(data.slug){
+       // Slug uniqueness
+       const slugConflict = await prisma.store.findFirst({
+           where: {slug: data.slug, NOT: {id}},
+       });
+       if (slugConflict) return {error: "Slug already in use"};
+   }
 
     const updated = await prisma.$transaction(async (tx: {
         store: {
@@ -75,7 +83,7 @@ async function update(id: string, userId: string, data: any) {
                 updatedAt: new Date(),
                 operatingHours: {
                     deleteMany: {},
-                    create: data.operatingHours.map((h: any) => ({
+                    create: data.operatingHours?.map((h: any) => ({
                         dayOfWeek: h.dayOfWeek,
                         openTime: h.openTime,
                         closeTime: h.closeTime,
@@ -103,8 +111,8 @@ async function remove(id: string, userId: string) {
     return {success: true, data: deleted}
 }
 
-async function list(params: ReturnType<typeof storeQuery.parse>) {
-    const {q, page, limit, sort, lat, lng} = params;
+async function list(params: ReturnType<typeof storeQuery.parse> & { userTimezone?: string }) {
+    const {q, page, limit, sort, lat, lng, userTimezone} = params;
 
     const where: any = {};
     if (q) {
@@ -121,7 +129,7 @@ async function list(params: ReturnType<typeof storeQuery.parse>) {
     let stores: any[] = [];
     let total = 0;
 
-    if (sort === "distance" && lat && lng) {
+    if (lat!==undefined && lng!==undefined) {
         const allStores = await prisma.store.findMany({
             where,
             include: {operatingHours: true}
@@ -129,7 +137,7 @@ async function list(params: ReturnType<typeof storeQuery.parse>) {
 
         total = allStores.length;
 
-        const enriched = allStores.map((s: any) => store_enrich(s, lat, lng));
+        const enriched = allStores.map((s: any) => store_enrich(s, lat, lng, userTimezone));
         const sorted = enriched.sort(
             (a: { distanceKm: any; }, b: {
                 distanceKm: any;
@@ -155,7 +163,7 @@ async function list(params: ReturnType<typeof storeQuery.parse>) {
         ]);
 
         total = count;
-        stores = pagedStores.map((s: any) => store_enrich(s, lat, lng));
+        stores = pagedStores.map((s: any) => store_enrich(s, lat, lng, userTimezone));
     }
 
     const list = {
@@ -164,6 +172,7 @@ async function list(params: ReturnType<typeof storeQuery.parse>) {
             page: pageNum,
             limit: limitNum,
             totalPages: Math.ceil(total / limitNum),
+            userTimezone: userTimezone || null, // Include user timezone in response
         },
         payload: stores,
     };

@@ -3,7 +3,7 @@ import {
     StoreProductIdDeleteHandler,
     StoreProductIdGetHandler,
     StoreProductIdPutHandler
-} from "@/lib/modules/product/product.id.handler";
+} from "@/lib/modules/product/stores.product.id.handler";
 
 
 export const GET = server_request(StoreProductIdGetHandler, {unprotected: true});

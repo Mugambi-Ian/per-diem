@@ -1,10 +1,14 @@
 import {prisma} from "@/lib/db/prisma";
 import {product_enrich} from "@/lib/modules/product/utils/enrich";
 import {diff} from "@/shared/utils/object";
-import {ProductInput, ProductUpdateInput} from "@/lib/modules/product/schema/product";
+import {
+    Product,
+    productSchema,
+    productUpdateSchema
+} from "@/lib/modules/product/schema/product";
 
-async function create(parsed: ProductInput, storeId?: string) {
-    const product = await prisma.product.create({
+async function create(parsed: ReturnType<typeof productSchema.parse>, storeId: string) {
+    const product: any = await prisma.product.create({
         data: {
             storeId,
             name: parsed.name,
@@ -24,7 +28,7 @@ async function create(parsed: ProductInput, storeId?: string) {
 }
 
 async function update(
-    parsed: ProductUpdateInput,
+    parsed: ReturnType<typeof productUpdateSchema.parse>,
     storeId?: string,
     productId?: string,
     userId?: string
@@ -51,10 +55,11 @@ async function update(
         endTime: a.endTime,
     }));
 
-    const parsedAvail = parsed.availability.map((a) => ({
+    const parsedAvail = (parsed.availability ?? []).map((a, index) => ({
         ...a,
         startTime: a.startTime,
         endTime: a.endTime,
+        id: `${index}`
     }));
 
     const {toDelete: toDeleteAvail, toAdd: toAddAvail} = diff(
@@ -67,19 +72,23 @@ async function update(
     );
 
     // Diff modifiers
-    const existingMods = existing.modifiers.map((m: { id: any; name: any; priceDelta: any; }) => ({
-        id: m.id,
+    const existingMods = existing.modifiers.map((m: { id: any; name: any; priceDelta: any; }, index) => ({
+        id:`${m.id}`,
         name: m.name,
         priceDelta: m.priceDelta,
     }));
 
     const {toDelete: toDeleteMods, toAdd: toAddMods} = diff(
         existingMods,
-        parsed.modifiers,
+        (parsed.modifiers ?? []).map((m,i) => ({
+            id: `${m.id}`,
+            name: m.name,
+            priceDelta: m.priceDelta,
+        })),
         (a, b) => a.name === b.name && a.priceDelta === b.priceDelta
     );
 
-    const updated = await prisma.$transaction((tx: any) => tx.product.update({
+    const updated: Product = await prisma.$transaction((tx: any) => tx.product.update({
         where: {id: productId},
         data: {
             name: parsed.name,
@@ -154,7 +163,7 @@ async function list(page: number, limit: number, storeId?: string) {
         status: 200,
         success: true,
         data: {
-            payload: products.map(product_enrich),
+            payload: products.map(p=>product_enrich(p)),
             meta: {
                 page,
                 limit,

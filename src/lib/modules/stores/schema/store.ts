@@ -1,5 +1,5 @@
 import { z } from "zod";
-import {DateTime} from "luxon";
+import {DateTime, IANAZone} from "luxon";
 
 export const operatingHourSchema = z.object({
     dayOfWeek: z.number().min(0).max(6), // 0 = Sunday
@@ -19,7 +19,7 @@ export const storeSchema = z.object({
     lng: z.number(),
     operatingHours: z.array(operatingHourSchema).nonempty(),
 });
-
+export const storeUpdateSchema =storeSchema.partial();
 export const storeQuery = z.object({
     q: z.string().optional(),
     page: z.coerce.number().min(1).default(1),
@@ -82,9 +82,7 @@ export function validateStoreHours(hours: ReturnType<typeof storeSchema.parse>['
     }
 
     // Validate timezone
-    try {
-        DateTime.now().setZone(timezone);
-    } catch {
+    if (!IANAZone.isValidZone(timezone)) {
         errors.push(`Invalid timezone: ${timezone}`);
     }
 

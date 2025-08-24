@@ -32,3 +32,25 @@ export function date_parse_HHMMT(dt: DateTime, hhmm: string, tz: string) {
     }
     return res;
 }
+
+export function formatDate(date: Date, format: string): string {
+    if (!isValidDate(date)) {
+        throw new Error('Invalid date provided');
+    }
+    
+    const dt = DateTime.fromJSDate(date);
+    return dt.toFormat(format);
+}
+
+export function parseDate(dateString: string): Date | null {
+    const dt = DateTime.fromISO(dateString);
+    if (!dt.isValid) {
+        return null;
+    }
+    return dt.toJSDate();
+}
+
+export function isValidDate(date: Date | null | undefined): boolean {
+    if (!date) return false;
+    return !isNaN(date.getTime());
+}

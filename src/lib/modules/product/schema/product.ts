@@ -112,7 +112,6 @@ export function normalizeProductAvailability(availability: Partial<ProductAvaila
         return [{
             ...availability,
             id: availability.id || '',
-            productId: availability.productId || '',
             dayOfWeek: availability.dayOfWeek,
             startTime: availability.startTime,
             endTime: availability.endTime,

@@ -3,18 +3,19 @@ import {JWTPayload} from "jose";
 import {ApiResponse} from "@/lib/utils/response";
 import {ProductService} from "@/lib/modules/product/service/product.service";
 import {
-    productSchema,
     validateProductAvailability,
-    normalizeProductAvailability, ProductUpdateInput,
+    normalizeProductAvailability, productUpdateSchema,
 } from "@/lib/modules/product/schema/product";
+
+type Response = ApiResponse<{ name?: string, price?: number, modifiers?: string }>;
 
 export async function StoreProductIdPutHandler(
     req: NextRequest,
     params?: { id: string; productId: string },
     jwt?: JWTPayload
-): Promise<ApiResponse> {
+): Promise<Response> {
     const body = await req.json();
-    const parse = productSchema.safeParse(body);
+    const parse = productUpdateSchema.safeParse(body);
     if (!parse.success) {
         return {
             success: false,
@@ -34,15 +35,8 @@ export async function StoreProductIdPutHandler(
         };
     }
 
-    const product: ProductUpdateInput = {
-        name: parsed.name,
-        description: parsed.description,
-        price: parsed.price,
-        availability,
-        modifiers: parsed.modifiers ?? [],
-    }
 
-    return ProductService.update(product, params?.id, params?.productId, jwt?.sub);
+    return ProductService.update(parsed, params?.id, params?.productId, jwt?.sub);
 }
 
 export async function StoreProductIdDeleteHandler(
@@ -57,7 +51,7 @@ export async function StoreProductIdDeleteHandler(
 export async function StoreProductIdGetHandler(
     _req: NextRequest,
     params?: { id: string; productId: string },
-): Promise<ApiResponse> {
+): Promise<Response> {
 
     const product = await ProductService.get(params?.id, params?.productId);
     if (product) return product;

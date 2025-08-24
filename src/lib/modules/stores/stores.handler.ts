@@ -5,7 +5,12 @@ import {JWTPayload} from "jose";
 import {DateTime} from "luxon";
 import {ApiResponse} from "@/lib/utils/response";
 
-export async function StoresGetHandler(req: NextRequest): Promise<ApiResponse> {
+type Response = ApiResponse<{
+    id?:string;
+    payload?:any[]
+}>
+
+export async function StoresGetHandler(req: NextRequest): Promise<Response> {
     const {searchParams} = new URL(req.url);
     const parsed = storeQuery.safeParse(Object.fromEntries(searchParams));
 
@@ -17,10 +22,21 @@ export async function StoresGetHandler(req: NextRequest): Promise<ApiResponse> {
         };
     }
 
-    return await StoreService.list(parsed.data);
+    // Extract user timezone from headers
+    const userTimezone = req.headers.get("x-user-timezone") || 
+                       req.headers.get("x-timezone") ||
+                       req.headers.get("timezone");
+
+    // Add user timezone to the query data if available
+    const queryData = {
+        ...parsed.data,
+        userTimezone: userTimezone || undefined
+    };
+
+    return await StoreService.list(queryData);
 }
 
-export async function StoresPostHandler(req: NextRequest, _params: any, jwt?: JWTPayload): Promise<ApiResponse> {
+export async function StoresPostHandler(req: NextRequest, _params: any, jwt?: JWTPayload): Promise<Response> {
     const body = await req.json();
     const parsed = storeSchema.safeParse(body);
 
@@ -48,6 +64,5 @@ export async function StoresPostHandler(req: NextRequest, _params: any, jwt?: JW
         };
     }
 
-    return StoreService.create(parsed.data, jwt?.sub)
-
+    return StoreService.create(parsed.data, `${jwt!.sub}`)
 }

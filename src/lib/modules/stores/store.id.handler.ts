@@ -1,4 +1,4 @@
-import {storeSchema} from "@/lib/modules/stores/schema/store";
+import {storeSchema, storeUpdateSchema} from "@/lib/modules/stores/schema/store";
 import {DateTime} from "luxon";
 import {ApiResponse} from "@/lib/utils/response";
 import {StoreService} from "@/lib/modules/stores/service/store.service";
@@ -9,17 +9,23 @@ interface Params {
     id: string;
 }
 
-export async function StoreIdGetHandler(req: NextRequest, params?: Params): Promise<ApiResponse> {
+type Response = ApiResponse<{
+    id?: string,
+    name?: string
+    message?:string
+}>
+
+export async function StoreIdGetHandler(req: NextRequest, params?: Params): Promise<Response> {
     const {id} = params!;
     const result = await StoreService.get(id);
     if (result) return result;
     return {success: false, error: {message: "Store not found"}, status: 404};
 }
 
-export async function StoreIdPutHandler(req: NextRequest, params?: Params, jwt?: JWTPayload): Promise<ApiResponse> {
+export async function StoreIdPutHandler(req: NextRequest, params?: Params, jwt?: JWTPayload): Promise<Response> {
     const userId = jwt?.sub;
     const body = await req.json();
-    const parsed = storeSchema.safeParse(body);
+    const parsed = storeUpdateSchema.safeParse(body);
 
     if (!parsed.success) return {success: false, error: parsed.error.flatten(), status: 400};
 
@@ -34,7 +40,7 @@ export async function StoreIdPutHandler(req: NextRequest, params?: Params, jwt?:
     return updated;
 }
 
-export async function StoreIdDeleteHandler(req: NextRequest, params?: Params, jwt?: JWTPayload): Promise<ApiResponse> {
+export async function StoreIdDeleteHandler(req: NextRequest, params?: Params, jwt?: JWTPayload): Promise<Response> {
     const userId = jwt?.sub;
     if (!userId) return {success: false, error: {message: "UNAUTHORIZED"}, status: 401};
 

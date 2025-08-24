@@ -1,14 +1,13 @@
 import {DateTime} from "luxon";
 import {OperatingHour, Store, StoreHoursResult} from "@/lib/modules/stores/schema/store";
 
-
 export function isStoreOpen(
     store: Store,
     date?: DateTime,
     userTimezone?: string // For cross-timezone scenarios
 ): StoreHoursResult {
     // Use store timezone as reference point, but accept user timezone for context
-    const storeNow = date?.setZone(store.timezone) ?? DateTime.now().setZone(store.timezone);
+    const storeNow = (date ?? DateTime.now()).setZone(store.timezone, {keepLocalTime: false});
     const dstWarnings: string[] = [];
 
     const parseTime = (time: string, day: DateTime, zone: string): DateTime => {
@@ -25,58 +24,6 @@ export function isStoreOpen(
             },
             {zone}
         );
-    };
-
-    const handleDSTTransition = (
-        targetTime: DateTime,
-        operatingHour: OperatingHour
-    ): { time: DateTime; warning?: string } => {
-        // Check if we're in a DST transition period
-        const dayStart = targetTime.startOf('day');
-        const dayEnd = targetTime.endOf('day');
-
-        // Find DST transitions on this day
-        const transitions = [];
-        for (let hour = 0; hour < 24; hour++) {
-            const testTime = dayStart.set({hour});
-            if (!testTime.isValid) {
-                // This hour doesn't exist (spring forward)
-                transitions.push({type: 'spring', hour});
-            } else {
-                const nextHour = testTime.plus({hours: 1});
-                if (nextHour.hour === testTime.hour + 2) {
-                    // Hour was skipped (spring forward detected)
-                    transitions.push({type: 'spring', hour: hour + 1});
-                } else if (nextHour.hour === testTime.hour) {
-                    // Hour repeated (fall back detected)
-                    transitions.push({type: 'fall', hour});
-                }
-            }
-        }
-
-        if (transitions.length === 0) {
-            return {time: targetTime};
-        }
-
-        const transition = transitions[0];
-        let warning: string | undefined;
-
-        if (transition.type === 'spring') {
-            // Spring forward: 2 AM becomes 3 AM
-            if (targetTime.hour === 2 && operatingHour.dstAware !== false) {
-                const adjustedTime = targetTime.plus({hours: 1});
-                warning = `DST spring forward: ${targetTime.hour}:${targetTime.minute.toString().padStart(2, '0')} adjusted to ${adjustedTime.hour}:${adjustedTime.minute.toString().padStart(2, '0')}`;
-                return {time: adjustedTime, warning};
-            }
-        } else if (transition.type === 'fall') {
-            // Fall back: 2 AM happens twice
-            if (targetTime.hour === 2 && operatingHour.dstAware !== false) {
-                // For store hours, we typically want the first occurrence
-                warning = `DST fall back: ${targetTime.hour}:${targetTime.minute.toString().padStart(2, '0')} occurs twice, using first occurrence`;
-            }
-        }
-
-        return {time: targetTime, warning};
     };
 
     const isInRange = (now: DateTime, open: DateTime, close: DateTime): boolean => {
@@ -97,9 +44,11 @@ export function isStoreOpen(
     // Look ahead 14 days to handle complex DST scenarios
     for (let i = 0; i < 14; i++) {
         const checkDay = storeNow.plus({days: i});
+        const dayStart = checkDay.startOf("day");
+        const dayEnd = dayStart.plus({days: 1});
 
         // Handle weekday calculation correctly for all timezones
-        const weekday = checkDay.weekday === 7 ? 0 : checkDay.weekday; // Convert Luxon (1-7) to our format (0-6)
+        const weekday = checkDay.weekday === 7 ? 0 : checkDay.weekday;
 
         const dayHours = store.operatingHours
             .filter(h => h.dayOfWeek === weekday && h.isOpen)
@@ -129,8 +78,45 @@ export function isStoreOpen(
             })
             .sort((a, b) => a.open.toMillis() - b.open.toMillis());
 
+        // Also pull in previous day's windows that spill past midnight into `checkDay`
+        const prevDay = checkDay.minus({days: 1});
+        const prevWeekday = prevDay.weekday % 7;
+
+        const prevOvernights = store.operatingHours
+            .filter(h => h.isOpen && (h.closesNextDay || (parseTime(h.closeTime, prevDay, store.timezone) <= parseTime(h.openTime, prevDay, store.timezone))))
+            .filter(h => h.dayOfWeek === prevWeekday)
+            .map(h => {
+                const openResult = handleDSTTransition(parseTime(h.openTime, prevDay, store.timezone), h);
+                const closeResult = handleDSTTransition(parseTime(h.closeTime, prevDay, store.timezone), h);
+
+                const open = openResult.time;
+                let close = closeResult.time;
+
+                // Force next-day close for overnight
+                if (h.closesNextDay || close <= open) close = close.plus({days: 1});
+
+                // We only want the portion that falls on `checkDay`
+                const startOfCheckDay = checkDay.startOf("day");
+                const endOfCheckDay = startOfCheckDay.plus({days: 1});
+
+                const clippedOpen = open < startOfCheckDay ? startOfCheckDay : open;
+                const clippedClose = close > endOfCheckDay ? endOfCheckDay : close;
+
+                // Only include if overlap exists
+                if (clippedClose > clippedOpen) {
+                    if (openResult.warning) dstWarnings.push(openResult.warning);
+                    if (closeResult.warning) dstWarnings.push(closeResult.warning);
+                    return {open: clippedOpen, close: clippedClose, original: h, _spill: true};
+                }
+                return null;
+            })
+            .filter(Boolean) as Array<{ open: DateTime; close: DateTime; original: OperatingHour; _spill: true }>;
+
+        let intervals = [...dayHours, ...prevOvernights].map(h => ({open: h.open, close: h.close}));
+        intervals = mergeIntervals(intervals);
+
         // Handle closed days
-        if (dayHours.length === 0) {
+        if (intervals.length === 0) {
             const start = checkDay.startOf("day");
             const end = start.plus({days: 1});
             closedOn.push({start: start.toJSDate(), end: end.toJSDate()});
@@ -138,33 +124,32 @@ export function isStoreOpen(
         }
 
         // Build detailed closed periods within the day
-        let currentTime = checkDay.startOf("day");
+        let currentTime = dayStart;
 
-        for (const {open, close} of dayHours) {
-            // Add closed period before this open period
+        for (const {open, close} of intervals) {
+            // Add closed period before this interval opens
             if (currentTime < open) {
                 closedOn.push({
                     start: currentTime.toJSDate(),
-                    end: open.toJSDate()
+                    end: open.toJSDate(),
                 });
             }
 
-            // Check if currently open (only for today)
+            // Check if store is open right now
             if (i === 0 && isInRange(storeNow, open, close)) {
                 isOpen = true;
             }
 
-            // Track next opening time
+            // Set next open time if we're currently closed and this is a future opening
             if (!isOpen && open > storeNow && (!nextOpen || open.toJSDate() < nextOpen)) {
                 nextOpen = open.toJSDate();
             }
 
-            // Move current time to after this period closes
+            // Move current time to end of this interval
             currentTime = close;
         }
 
-        // Add closed period from last close time to end of day
-        const dayEnd = checkDay.plus({days: 1}).startOf("day");
+        // Add closed period from last close time to end of day (only once)
         if (currentTime < dayEnd) {
             closedOn.push({
                 start: currentTime.toJSDate(),
@@ -200,75 +185,121 @@ export function convertStoreHoursToUserTimezone(
     userTimezone: string,
     date: DateTime = DateTime.now()
 ): OperatingHour[] {
-    return storeHours.map(hour => {
-        const storeDate = date.setZone(storeTimezone);
-        const openTime = DateTime.fromObject(
-            {
-                year: storeDate.year,
-                month: storeDate.month,
-                day: storeDate.day,
-                hour: parseInt(hour.openTime.split(':')[0]),
-                minute: parseInt(hour.openTime.split(':')[1])
-            },
-            {zone: storeTimezone}
-        ).setZone(userTimezone);
+    const storeDate = date.setZone(storeTimezone).startOf("day");
 
-        const closeTime = DateTime.fromObject(
-            {
-                year: storeDate.year,
-                month: storeDate.month,
-                day: storeDate.day,
-                hour: parseInt(hour.closeTime.split(':')[0]),
-                minute: parseInt(hour.closeTime.split(':')[1])
-            },
-            {zone: storeTimezone}
-        ).setZone(userTimezone);
+    const out: OperatingHour[] = [];
 
-        return {
-            ...hour,
-            openTime: openTime.toFormat('HH:mm'),
-            closeTime: closeTime.toFormat('HH:mm'),
-            dayOfWeek: openTime.weekday === 7 ? 0 : openTime.weekday
+    for (const h of storeHours) {
+        const [oh, om] = h.openTime.split(":").map(Number);
+        const [ch, cm] = h.closeTime.split(":").map(Number);
+
+        const open = storeDate.set({hour: oh, minute: om});
+        let close = storeDate.set({hour: ch, minute: cm});
+
+        // Overnight?
+        if (h.closesNextDay || close <= open) close = close.plus({days: 1});
+
+        // Convert both endpoints to user zone
+        const uOpen = open.setZone(userTimezone);
+        const uClose = close.setZone(userTimezone);
+
+        // If the interval crosses midnight in user zone, split into at most two
+        const uOpenDay = uOpen.startOf("day");
+        const uCloseDay = uClose.startOf("day");
+
+        const pushSegment = (a: DateTime, b: DateTime) => {
+            out.push({
+                ...h,
+                dayOfWeek: a.weekday === 7 ? 0 : a.weekday,
+                openTime: a.toFormat("HH:mm"),
+                closeTime: b.toFormat("HH:mm"),
+                // keep the original closesNextDay flag for UI hints (even if split)
+                closesNextDay: b.startOf("day") > a.startOf("day"),
+            });
         };
+
+        if (uOpenDay.equals(uCloseDay)) {
+            // Single segment
+            pushSegment(uOpen, uClose);
+        } else {
+            // Split at midnight
+            const midnight = uCloseDay;
+            pushSegment(uOpen, midnight);
+            pushSegment(midnight, uClose);
+        }
+    }
+
+    // Sort for sanity
+    return out.sort((a, b) => {
+        if (a.dayOfWeek !== b.dayOfWeek) return a.dayOfWeek - b.dayOfWeek;
+        return a.openTime.localeCompare(b.openTime);
     });
 }
 
+function mergeIntervals(intervals: { open: DateTime; close: DateTime }[]) {
+    if (intervals.length === 0) return [];
 
-// Example usage and test cases
-export function runDSTTests() {
-    const testStore: Store = {
-        timezone: 'America/New_York',
-        operatingHours: [
-            {
-                dayOfWeek: 0, // Sunday
-                isOpen: true,
-                openTime: '01:30',
-                closeTime: '03:30',
-                dstAware: true
-            },
-            {
-                dayOfWeek: 1, // Monday
-                isOpen: true,
-                openTime: '22:00',
-                closeTime: '02:00',
-                closesNextDay: true,
-                dstAware: true
-            }
-        ]
-    };
+    const sorted = intervals
+        .map(i => ({
+            open: i.open.startOf("minute"),  // normalize
+            close: i.close.startOf("minute"),
+        }))
+        .sort((a, b) => a.open.toMillis() - b.open.toMillis());
 
-    // Test spring forward (March 2024)
-    const springForward = DateTime.fromObject(
-        {year: 2024, month: 3, day: 10, hour: 2, minute: 0},
-        {zone: 'America/New_York'}
-    );
+    const merged: { open: DateTime; close: DateTime }[] = [];
+    let current = {...sorted[0]};
 
-    // Test fall back (November 2024)
-    const fallBack = DateTime.fromObject(
-        {year: 2024, month: 11, day: 3, hour: 1, minute: 30},
-        {zone: 'America/New_York'}
-    );
-
-    console.log('Spring Forward Test:', isStoreOpen(testStore, springForward));
-    console.log('Fall Back Test:', isStoreOpen(testStore, fallBack));
+    for (let i = 1; i < sorted.length; i++) {
+        const next = sorted[i];
+        if (next.open <= current.close) {
+            // merge
+            current.close = next.close > current.close ? next.close : current.close;
+        } else {
+            merged.push(current);
+            current = {...next};
+        }
+    }
+    merged.push(current);
+    return merged;
 }
+
+// Most reliable approach - check actual DST behavior:
+const handleDSTTransition = (targetTime: DateTime, operatingHour: OperatingHour) => {
+    if (operatingHour.dstAware === false) {
+        return {time: targetTime};
+    }
+
+    // Check if this date has a DST transition by comparing day start and end offsets
+    const dayStart = targetTime.startOf('day');
+    const dayEnd = dayStart.endOf('day');
+
+    const startOffset = dayStart.offset;
+    const endOffset = dayEnd.offset;
+
+    if (startOffset !== endOffset) {
+        // DST transition detected on this day
+        const isSpringForward = endOffset > startOffset;
+
+        if (isSpringForward) {
+            // Spring forward transition
+            if (targetTime.hour === 2) {
+                const adjustedTime = targetTime.set({hour: 3});
+                const warning = `DST spring forward: ${targetTime.toFormat('HH:mm')} doesn't exist, adjusted to ${adjustedTime.toFormat('HH:mm')}`;
+                return {time: adjustedTime, warning};
+            }
+            // Generate warning for any time that might be affected
+            if (targetTime.hour >= 1 && targetTime.hour <= 3) {
+                const warning = `DST spring forward: Operating near DST transition (2:00 AM skipped)`;
+                return {time: targetTime, warning};
+            }
+        } else {
+            // Fall back transition
+            if (targetTime.hour >= 1 && targetTime.hour <= 2) {
+                const warning = `DST fall back: ${targetTime.toFormat('HH:mm')} occurs twice during transition`;
+                return {time: targetTime, warning};
+            }
+        }
+    }
+
+    return {time: targetTime};
+};

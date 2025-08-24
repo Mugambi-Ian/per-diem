@@ -13,7 +13,7 @@ export async function StoreProductPostHandler(
     req: NextRequest,
     params?: { id: string },
     jwt?: JWTPayload
-): Promise<ApiResponse> {
+): Promise<ApiResponse<{ product?: any }>> {
 
     const body = await req.json();
     if (!(await StoreService.checkStoreOwnership(params?.id, jwt?.sub))) {
@@ -37,21 +37,13 @@ export async function StoreProductPostHandler(
         };
     }
     const parsed = parse.data;
-    const product = {
-        name: parsed.name,
-        description: parsed.description,
-        price: parsed.price,
-        availability: availabilities,
-        modifiers: parsed.modifiers ?? [],
-    }
-
-    return ProductService.create(product, params?.id);
+    return ProductService.create(parsed, params!.id);
 }
 
 export async function StoreProductGETHandler(
     req: NextRequest,
     params?: { id: string }
-): Promise<ApiResponse> {
+): Promise<ApiResponse<{ payload?: any, meta: { totalPages: number, total: number } }>> {
     const {searchParams} = new URL(req.url);
     const page = parseInt(searchParams.get("page") ?? "1", 10);
     const limit = parseInt(searchParams.get("limit") ?? "20", 10);

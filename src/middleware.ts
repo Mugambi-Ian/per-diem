@@ -1,35 +1,16 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { handleCorsPreflight } from './lib/utils/cors';
-import { getSecurityHeaders } from './lib/utils/security.headers';
+// middleware.ts
+import { NextRequest } from "next/server";
+import {getSecurityHeadersConfig, securityHeadersMiddleware} from "@/lib/utils/response.headers"; // adjust path to where your file lives
 
 export function middleware(request: NextRequest) {
-    // Handle CORS preflight requests
-    const corsResponse = handleCorsPreflight(request);
-    if (corsResponse) {
-        return corsResponse;
-    }
+    // Get env-aware config (e.g., only enable HSTS in production)
+    const config = getSecurityHeadersConfig();
 
-    // Continue with the request
-    const response = NextResponse.next();
-
-    // Add security headers to all responses
-    const securityHeaders = getSecurityHeaders();
-    Object.entries(securityHeaders).forEach(([key, value]) => {
-        response.headers.set(key, value);
-    });
-
-    return response;
+    // Apply security headers
+    return securityHeadersMiddleware(request, config);
 }
 
+// Optional: Limit middleware to specific routes
 export const config = {
-    matcher: [
-        /*
-         * Match all request paths except for the ones starting with:
-         * - _next/static (static files)
-         * - _next/image (image optimization files)
-         * - favicon.ico (favicon file)
-         * - public folder
-         */
-        '/((?!_next/static|_next/image|favicon.ico|public/).*)',
-    ],
+    matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };
