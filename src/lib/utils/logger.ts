@@ -1,12 +1,20 @@
+// src/lib/utils/logger.ts
 import pino from "pino";
 import fs from "fs";
 import path from "path";
 
+const logDir = process.env.LOG_DIR || "./logs";
+const logName = process.env.LOG_NAME || "per-diem";
 
-const logPath = process.env.LOG_DIR
-    ? path.join(process.env.LOG_DIR, process.env.LOG_NAME+".log")
-    : undefined;
+const logPath = path.join(logDir, `${logName}.log`);
 
+// Ensure log directory exists
+if (!fs.existsSync(logDir)) {
+    fs.mkdirSync(logDir, { recursive: true });
+}
+
+// Create logger
 export const logger = pino(
-    logPath ? fs.createWriteStream(logPath, { flags: "a" }) : undefined
+    { level: process.env.NODE_ENV === "development" ? "debug" : "info" },
+    pino.destination({ dest: logPath, sync: false })
 );

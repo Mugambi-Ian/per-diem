@@ -1,10 +1,10 @@
 // __tests__/setup.integration.ts
-import { execSync } from 'child_process';
-import { PrismaClient } from '@prisma/client';
+import {execSync} from 'child_process';
+import {PrismaClient} from '@prisma/client';
 import * as dbModule from "@/lib/db/prisma"; // import module to override prisma
 
 // Unique DB name per Jest worker
-const dbName = `test_${Date.now()}_${Math.random()}`;
+const dbName = `test_${expect.getState().testPath.split("__/")[1].replaceAll("/","_")}`;
 const baseUrl = process.env.DATABASE_URL;
 if (!baseUrl) throw new Error('DATABASE_URL must be set');
 
@@ -17,12 +17,12 @@ let testPrismaClient;
 
 beforeAll(async () => {
     // Create test DB
-    execSync(`psql --dbname="${rootDb}" -c "CREATE DATABASE \\"${dbName}\\";"`, { stdio: 'inherit' });
+    execSync(`psql --dbname="${rootDb}" -c "CREATE DATABASE \\"${dbName}\\";"`, {stdio: 'inherit'});
 
     // Push schema
     execSync(
         `npx prisma db push --force-reset --skip-generate --schema=./prisma/schema.prisma`,
-        { env: { ...process.env, DATABASE_URL: testDbUrl }, stdio: 'inherit' }
+        {env: {...process.env, DATABASE_URL: testDbUrl}, stdio: 'inherit'}
     );
 
     // Override DATABASE_URL for this test session
@@ -30,7 +30,7 @@ beforeAll(async () => {
 
     // Create new Prisma client pointing to the test DB
     testPrismaClient = new PrismaClient({
-        datasources: { db: { url: testDbUrl } },
+        datasources: {db: {url: testDbUrl}},
     });
     globalThis.__prisma = testPrismaClient;
 
@@ -46,7 +46,7 @@ afterAll(async () => {
 
     execSync(
         `psql --dbname="${rootDb}" -c "DROP DATABASE IF EXISTS \\"${dbName}\\" WITH (FORCE);"`,
-        { stdio: 'inherit' }
+        {stdio: 'inherit'}
     );
     console.log(`🗑️ Test database [${dbName}] dropped`);
 });

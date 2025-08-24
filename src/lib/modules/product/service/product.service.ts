@@ -2,10 +2,13 @@ import {prisma} from "@/lib/db/prisma";
 import {product_enrich} from "@/lib/modules/product/utils/enrich";
 import {diff} from "@/shared/utils/object";
 import {
+    normalizeProductAvailability,
     Product,
     productSchema,
     productUpdateSchema
 } from "@/lib/modules/product/schema/product";
+import { DateTime } from "luxon";
+import {getNextAvailableTime, isAvailableNow} from "@/lib/modules/product/utils/availability";
 
 async function create(parsed: ReturnType<typeof productSchema.parse>, storeId: string) {
     const product: any = await prisma.product.create({
@@ -174,4 +177,92 @@ async function list(page: number, limit: number, storeId?: string) {
     };
 }
 
-export const ProductService = {create, list, update, remove, get};
+async function getAvailability(productId: string, storeId: string, queryData: any) {
+    try {
+        const product = await prisma.product.findFirst({
+            where: { id: productId, storeId },
+            include: {
+                availability: true,
+                modifiers: true,
+                store: {
+                    select: {
+                        id: true,
+                        name: true,
+                        timezone: true
+                    }
+                }
+            }
+        });
+
+        if (!product) {
+            return {
+                success: false,
+                error: { code: "PRODUCT_NOT_FOUND", message: "Product not found" },
+                status: 404,
+            };
+        }
+
+        const { date, time, includeModifiers, includePricing, includeNextAvailable } = queryData;
+        const userTimezone = queryData.userTimezone;
+
+        // Use provided date/time or current time
+        const checkDate = date ? DateTime.fromISO(date) : DateTime.now();
+        const checkTime = time || checkDate.toFormat("HH:mm");
+
+        // Normalize availability data
+        const availability = product.availability.map(a => normalizeProductAvailability(a)[0]);
+        // Check if product is available at the specified time
+        const isAvailable = isAvailableNow(availability, checkDate);
+
+        const result: any = {
+            productId: product.id,
+            productName: product.name,
+            storeId: product.storeId,
+            storeName: product.store.name,
+            storeTimezone: product.store.timezone,
+            isAvailable,
+            checkedAt: checkDate.toISO(),
+            checkedTime: checkTime
+        };
+
+        if (includePricing) {
+            result.price = product.price;
+            result.currency = "USD"; // Assuming USD for now
+        }
+
+        if (includeModifiers && product.modifiers.length > 0) {
+            result.modifiers = product.modifiers.map(mod => ({
+                id: mod.id,
+                name: mod.name,
+                priceDelta: mod.priceDelta
+            }));
+        }
+
+        if (includeNextAvailable && !isAvailable) {
+            result.nextAvailableTime = getNextAvailableTime(availability, checkDate);
+        }
+
+        if (userTimezone && userTimezone !== product.store.timezone) {
+            result.timezoneInfo = {
+                userTimezone,
+                storeTimezone: product.store.timezone,
+                userCurrentTime: DateTime.now().setZone(userTimezone).toFormat("HH:mm"),
+                storeCurrentTime: DateTime.now().setZone(product.store.timezone).toFormat("HH:mm")
+            };
+        }
+
+        return {
+            success: true,
+            data: { availability: result },
+            status: 200,
+        };
+    } catch (error: any) {
+        return {
+            success: false,
+            error: { code: "AVAILABILITY_CHECK_FAILED", message: error.message },
+            status: 500,
+        };
+    }
+}
+
+export const ProductService = {create, list, update, remove, get, getAvailability};

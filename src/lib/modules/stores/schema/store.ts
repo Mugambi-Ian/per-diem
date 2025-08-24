@@ -88,3 +88,21 @@ export function validateStoreHours(hours: ReturnType<typeof storeSchema.parse>['
 
     return errors;
 }
+
+// Store availability query schema
+export const storeAvailabilityQuerySchema = z.object({
+    date: z.string().refine((date) => {
+        return DateTime.fromISO(date).isValid;
+    }, "Invalid date format").optional(),
+    time: z.string().refine((time) => {
+        // Check format first
+        if (!/^\d{2}:\d{2}$/.test(time)) {
+            return false;
+        }
+        // Check if time values are valid
+        const [hours, minutes] = time.split(':').map(Number);
+        return hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59;
+    }, "Invalid time format - must be HH:MM with valid hours (0-23) and minutes (0-59)").optional(),
+    includeNextOpen: z.string().transform((val) => val === 'true').default('true'),
+    includeDSTInfo: z.string().transform((val) => val === 'true').default('true')
+});

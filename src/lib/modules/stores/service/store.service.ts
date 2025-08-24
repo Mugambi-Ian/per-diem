@@ -1,7 +1,8 @@
 import {prisma} from "@/lib/db/prisma";
-import {store_enrich} from "@/lib/modules/stores/utils/enrich";
-import {storeQuery, storeSchema} from "@/lib/modules/stores/schema/store";
+import {storeSchema, storeUpdateSchema, storeQuery} from "@/lib/modules/stores/schema/store";
 import {DateTime} from "luxon";
+import {store_enrich} from "@/lib/modules/stores/utils/enrich";
+import {isStoreOpen} from "@/lib/modules/stores/utils/availability";
 
 async function create(
     parsedData: ReturnType<typeof storeSchema.parse>,
@@ -187,11 +188,74 @@ async function checkStoreOwnership(storeId?: string, userId?: string) {
     return prisma.store.findFirst({where: {id: storeId, userId}});
 }
 
+async function getAvailability(storeId: string, queryData: any) {
+    try {
+        const store = await prisma.store.findUnique({
+            where: { id: storeId },
+            include: { operatingHours: true }
+        });
+
+        if (!store) {
+            return {
+                success: false,
+                error: { code: "STORE_NOT_FOUND", message: "Store not found" },
+                status: 404,
+            };
+        }
+
+        const { date, time, includeNextOpen, includeDSTInfo } = queryData;
+        const userTimezone = queryData.userTimezone;
+
+        // Use provided date/time or current time
+        const checkDate = date ? DateTime.fromISO(date) : DateTime.now();
+        const checkTime = time || checkDate.toFormat("HH:mm");
+
+        // Get store availability
+        const availability = isStoreOpen(store, checkDate, userTimezone);
+
+        const result: any = {
+            storeId: store.id,
+            storeName: store.name,
+            timezone: store.timezone,
+            currentLocalTime: DateTime.now().setZone(store.timezone).toFormat("HH:mm"),
+            isCurrentlyOpen: availability.isOpen,
+            checkedAt: checkDate.toISO(),
+            checkedTime: checkTime
+        };
+
+        if (includeNextOpen && !availability.isOpen) {
+            result.nextOpenTime = availability.nextOpen;
+        }
+
+        if (includeDSTInfo && userTimezone && userTimezone !== store.timezone) {
+            result.timezoneInfo = {
+                userTimezone,
+                storeTimezone: store.timezone,
+                userCurrentTime: DateTime.now().setZone(userTimezone).toFormat("HH:mm"),
+                storeCurrentTime: DateTime.now().setZone(store.timezone).toFormat("HH:mm")
+            };
+        }
+
+        return {
+            success: true,
+            data: { availability: result },
+            status: 200,
+        };
+    } catch (error: any) {
+        return {
+            success: false,
+            error: { code: "AVAILABILITY_CHECK_FAILED", message: error.message },
+            status: 500,
+        };
+    }
+}
+
 export const StoreService = {
     create,
     update,
     remove,
     get,
     list,
-    checkStoreOwnership
+    checkStoreOwnership,
+    getAvailability
 }

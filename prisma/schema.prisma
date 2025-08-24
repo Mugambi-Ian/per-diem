@@ -24,6 +24,7 @@ model User {
   lastFailedLogin     DateTime?
 
   Store Store[]
+  orders Order[]
 }
 
 model RefreshToken {
@@ -49,6 +50,7 @@ model Store {
   user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   operatingHours OperatingHour[]
   products       Product[]
+  orders         Order[]
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 }
@@ -76,6 +78,7 @@ model Product {
   cacheTTL     Int                   @default(300) // 5 min default
   lastModified DateTime              @default(now())
   store        Store                 @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  orderItems   OrderItem[]
 }
 
 model ProductAvailability {
@@ -96,4 +99,46 @@ model ProductModifier {
   name       String
   priceDelta Float   @default(0)
   product    Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orderItemModifiers OrderItemModifier[]
+}
+
+model Order {
+  id                 String      @id @default(cuid())
+  userId             String
+  storeId            String
+  status             String      @default("pending") // pending, confirmed, preparing, ready, completed, cancelled
+  totalAmount        Float
+  pickupTime         DateTime
+  specialInstructions String?
+  estimatedReadyTime DateTime?
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+  
+  user               User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  store              Store       @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  items              OrderItem[]
+}
+
+model OrderItem {
+  id                 String      @id @default(cuid())
+  orderId            String
+  productId          String
+  quantity           Int
+  specialInstructions String?
+  createdAt          DateTime    @default(now())
+  
+  order              Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product            Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  modifiers          OrderItemModifier[]
+}
+
+model OrderItemModifier {
+  id         String    @id @default(cuid())
+  orderItemId String
+  modifierId String
+  quantity   Int
+  createdAt  DateTime @default(now())
+  
+  orderItem OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  modifier  ProductModifier @relation(fields: [modifierId], references: [id], onDelete: Cascade)
 }

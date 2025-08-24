@@ -57,8 +57,22 @@ Object.defineProperty(global, 'crypto', {
   value: mockCrypto,
   writable: true
 });
+// Set environment variable to identify test type
+if (process.env.JEST_WORKER_ID) {
+  try {
+    // Jest exposes test file path through expect.getState().testPath
+    const { testPath } = expect.getState();
+    if (testPath && testPath.includes(".integration.test.")) {
+      process.env.INTEGRATION_TEST = "true";
+    } else {
+      process.env.INTEGRATION_TEST = "false";
+    }
+  } catch {
+    // fallback if expect.getState() is not available (outside test execution)
+    process.env.INTEGRATION_TEST = "false";
+  }
+}
 
-// Only mock logger for unit tests - integration tests should use real logger
 if (process.env.JEST_WORKER_ID && !process.env.INTEGRATION_TEST) {
   jest.mock('@/lib/utils/logger', () => ({
     logger: {
@@ -70,16 +84,7 @@ if (process.env.JEST_WORKER_ID && !process.env.INTEGRATION_TEST) {
   }));
 }
 
-// Set environment variable to identify test type
-if (process.env.JEST_WORKER_ID) {
-  // Check if we're running integration tests by looking at the test file path
-  const testPath = process.env.JEST_WORKER_ID ? process.argv[process.argv.length - 1] : '';
-  if (testPath && testPath.includes('.integration.test.')) {
-    process.env.INTEGRATION_TEST = 'true';
-  } else {
-    process.env.INTEGRATION_TEST = 'false';
-  }
-}
+
 
 // Global test timeout
 jest.setTimeout(30000)
