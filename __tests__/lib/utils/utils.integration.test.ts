@@ -478,7 +478,7 @@ describe('Utils Integration Tests', () => {
       
       const wrappedHandler = server_request(mockHandler);
       
-      const result = await wrappedHandler(mockRequest);
+      const result = await wrappedHandler(mockRequest, { params: Promise.resolve({}) });
       
       expect(result.status).toBe(200);
       expect(mockHandler).toHaveBeenCalledWith(mockRequest, undefined, {
@@ -495,7 +495,7 @@ describe('Utils Integration Tests', () => {
       
       const wrappedHandler = server_request(mockHandler, { unprotected: true });
       
-      const result = await wrappedHandler(mockRequest);
+      const result = await wrappedHandler(mockRequest, { params: Promise.resolve({}) });
       
       expect(result.status).toBe(200);
       expect(mockHandler).toHaveBeenCalledWith(mockRequest, undefined, undefined);
@@ -509,7 +509,7 @@ describe('Utils Integration Tests', () => {
       
       const wrappedHandler = server_request(mockHandler, { disableCSRF: true });
       
-      const result = await wrappedHandler(mockRequest);
+      const result = await wrappedHandler(mockRequest, { params: Promise.resolve({}) });
       
       expect(result.status).toBe(200);
     });
@@ -527,7 +527,7 @@ describe('Utils Integration Tests', () => {
       
       const wrappedHandler = server_request(mockHandler, { rateLimiter });
       
-      const result = await wrappedHandler(mockRequest);
+      const result = await wrappedHandler(mockRequest, { params: Promise.resolve({}) });
       
       expect(result.status).toBe(200);
     });
@@ -579,7 +579,7 @@ describe('Utils Integration Tests', () => {
         unprotected: true
       });
       
-      const result = await wrappedHandler(mockRequest);
+      const result = await wrappedHandler(mockRequest, { params: Promise.resolve({}) });
       
       expect(result.status).toBe(200);
       expect(mockHandler).toHaveBeenCalledWith(mockRequest, undefined, undefined);
@@ -1082,7 +1082,7 @@ describe('Utils Integration Tests', () => {
       });
       
       // Execute the complete flow
-      const result = await wrappedHandler(mockRequest);
+      const result = await wrappedHandler(mockRequest, { params: Promise.resolve({}) });
       
       // Verify the result
       expect(result.status).toBe(200);
@@ -1114,7 +1114,7 @@ describe('Utils Integration Tests', () => {
       const wrappedHandler = server_request(errorHandler);
       
       // Execute and expect error handling
-      const result = await wrappedHandler(mockRequest);
+      const result = await wrappedHandler(mockRequest, { params: Promise.resolve({}) });
       
       expect(result.status).toBe(500);
       expect(result.json()).resolves.toEqual({
@@ -1140,11 +1140,11 @@ describe('Utils Integration Tests', () => {
       });
       
       // First request should succeed
-      const result1 = await wrappedHandler(mockRequest);
+      const result1 = await wrappedHandler(mockRequest, { params: Promise.resolve({}) });
       expect(result1.status).toBe(200);
       
       // Second request should fail due to rate limiting
-      const result2 = await wrappedHandler(mockRequest);
+      const result2 = await wrappedHandler(mockRequest, { params: Promise.resolve({}) });
       expect(result2.status).toBe(429);
       expect(result2.json()).resolves.toEqual({
         success: false,

@@ -7,6 +7,7 @@ import {server_hash_password} from "@/lib/modules/auth/utils/password";
 import {schema_register} from "@/lib/modules/auth/schema/register";
 import { checkAccountLockout, recordFailedLogin, resetFailedLoginAttempts } from "@/lib/modules/auth/utils/lockout";
 import { logger } from "@/lib/utils/logger";
+import {UserResponseDTO} from "@/lib/modules/auth/schema/user";
 
 async function register({ email, password, fullName, timezone }: ReturnType<typeof schema_register.parse>) {
     const existing = await prisma.user.findUnique({ where: { email } });
@@ -94,4 +95,9 @@ async function logout(id: string) {
     logger.info({ refreshTokenId: id }, "User logged out");
 }
 
-export const AuthService = { register, login, logout };
+async function userByID(id:string){
+    return     await prisma.user.findFirst({ where: { id },select:UserResponseDTO});
+
+}
+
+export const AuthService = { register, login, logout ,userByID};

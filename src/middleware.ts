@@ -1,16 +1,32 @@
 // middleware.ts
-import { NextRequest } from "next/server";
-import {getSecurityHeadersConfig, securityHeadersMiddleware} from "@/lib/utils/response.headers"; // adjust path to where your file lives
+import { NextRequest, NextResponse } from "next/server";
+import { getSecurityHeadersConfig, securityHeadersMiddleware } from "@/lib/utils/response.headers";
+import createMiddleware from "next-intl/middleware";
+import { defineRouting } from "next-intl/routing";
 
+// ---- i18n routing ----
+export const routing = defineRouting({
+    locales: ["en", "fr"],
+    defaultLocale: "en",
+});
+
+const intlMiddleware = createMiddleware(routing);
+
+// ---- Combined middleware ----
 export function middleware(request: NextRequest) {
-    // Get env-aware config (e.g., only enable HSTS in production)
-    const config = getSecurityHeadersConfig();
+    // 1. Run intl middleware
+    let response = intlMiddleware(request);
 
-    // Apply security headers
-    return securityHeadersMiddleware(request, config);
+    // 2. Ensure we always have a NextResponse
+    if (!(response instanceof NextResponse)) {
+        response = NextResponse.next();
+    }
+
+    // 3. Apply security headers on top
+    const config = getSecurityHeadersConfig();
+    return securityHeadersMiddleware(request, config, response);
 }
 
-// Optional: Limit middleware to specific routes
 export const config = {
-    matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+    matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
 };

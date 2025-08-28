@@ -2,7 +2,7 @@ import {DateTime} from "luxon";
 import {OperatingHour, Store, StoreHoursResult} from "@/lib/modules/stores/schema/store";
 
 export function isStoreOpen(
-    store: Store,
+    store: any,
     date?: DateTime,
     userTimezone?: string // For cross-timezone scenarios
 ): StoreHoursResult {
@@ -51,8 +51,8 @@ export function isStoreOpen(
         const weekday = checkDay.weekday === 7 ? 0 : checkDay.weekday;
 
         const dayHours = store.operatingHours
-            .filter(h => h.dayOfWeek === weekday && h.isOpen)
-            .map(h => {
+            .filter((h:OperatingHour) => h.dayOfWeek === weekday && h.isOpen)
+            .map((h:OperatingHour) => {
                 const openResult = handleDSTTransition(
                     parseTime(h.openTime, checkDay, store.timezone),
                     h
@@ -76,16 +76,16 @@ export function isStoreOpen(
 
                 return {open, close, original: h};
             })
-            .sort((a, b) => a.open.toMillis() - b.open.toMillis());
+            .sort((a: { open: { toMillis: () => number; }; }, b: { open: { toMillis: () => number; }; }) => a.open.toMillis() - b.open.toMillis());
 
         // Also pull in previous day's windows that spill past midnight into `checkDay`
         const prevDay = checkDay.minus({days: 1});
         const prevWeekday = prevDay.weekday % 7;
 
         const prevOvernights = store.operatingHours
-            .filter(h => h.isOpen && (h.closesNextDay || (parseTime(h.closeTime, prevDay, store.timezone) <= parseTime(h.openTime, prevDay, store.timezone))))
-            .filter(h => h.dayOfWeek === prevWeekday)
-            .map(h => {
+            .filter((h:OperatingHour) => h.isOpen && (h.closesNextDay || (parseTime(h.closeTime, prevDay, store.timezone) <= parseTime(h.openTime, prevDay, store.timezone))))
+            .filter((h:OperatingHour) => h.dayOfWeek === prevWeekday)
+            .map((h:OperatingHour) => {
                 const openResult = handleDSTTransition(parseTime(h.openTime, prevDay, store.timezone), h);
                 const closeResult = handleDSTTransition(parseTime(h.closeTime, prevDay, store.timezone), h);
 

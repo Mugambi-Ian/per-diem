@@ -1,15 +1,12 @@
 const nextJest = require('next/jest')
 
 const createJestConfig = nextJest({
-  // Provide the path to your Next.js app to load next.config.js and .env files
   dir: './',
 })
 
-// Add any custom config to be passed to Jest
 const customJestConfig = {
   extensionsToTreatAsEsm: ['.ts', '.tsx'],
   moduleNameMapper: {
-    // Order matters! More specific patterns should come first
     '^@/__tests__/(.*)$': '<rootDir>/__tests__/$1',
     '^@/__mocks__/(.*)$': '<rootDir>/__mocks__/$1',
     '^@/(.*)$': '<rootDir>/src/$1',
@@ -19,22 +16,21 @@ const customJestConfig = {
     '!src/**/*.d.ts',
     '!src/**/*.test.{js,jsx,ts,tsx}',
     '!src/**/__tests__/**',
-    '!src/app/**', // Exclude Next.js app router files
-    '!src/client/**', // Exclude client-side files
+    '!src/app/**',
+    '!src/client/**',
   ],
   coverageThreshold: {
     global: {
-      branches: 0, // Disable global threshold
-      functions: 0,
-      lines: 0,
-      statements: 0,
+      branches: 80,
+      functions: 80,
+      lines: 80,
+      statements: 80,
     },
   },
   testPathIgnorePatterns: [
     '<rootDir>/.next/',
     '<rootDir>/node_modules/',
   ],
-  // Separate configurations for different test types
   projects: [
     {
       displayName: 'unit',
@@ -50,6 +46,9 @@ const customJestConfig = {
         '^@/__mocks__/(.*)$': '<rootDir>/__mocks__/$1',
         '^@/(.*)$': '<rootDir>/src/$1',
         '^jose$': '<rootDir>/__mocks__/jose.js',
+      },
+      transform: {
+        '^.+\\.(js|jsx|ts|tsx)$': ['babel-jest', { configFile: './babel.jest.js' }],
       },
       transformIgnorePatterns: [
         '/node_modules/(?!(jose|@peculiar|@js-temporal)/)',
@@ -73,6 +72,9 @@ const customJestConfig = {
         '^@/__mocks__/(.*)$': '<rootDir>/__mocks__/$1',
         '^@/(.*)$': '<rootDir>/src/$1',
       },
+      transform: {
+        '^.+\\.(js|jsx|ts|tsx)$': ['babel-jest', { configFile: './babel.jest.js' }],
+      },
       transformIgnorePatterns: [
         '/node_modules/(?!(jose|@peculiar|@js-temporal)/)',
       ],
@@ -83,11 +85,7 @@ const customJestConfig = {
     }
   ],
   transform: {
-    '^.+\\.(js|jsx|ts|tsx)$': ['babel-jest', {
-      presets: [
-        ['next/babel', { 'preset-env': { targets: { node: 'current' } } }]
-      ]
-    }],
+    '^.+\\.(js|jsx|ts|tsx)$': ['babel-jest', { configFile: './babel.jest.js' }],
   },
   transformIgnorePatterns: [
     '/node_modules/(?!(jose|@peculiar|@js-temporal)/)',

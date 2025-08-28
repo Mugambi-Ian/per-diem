@@ -247,8 +247,9 @@ describe('Product Availability Handler Integration Tests', () => {
                 method: 'GET',
             });
 
-            const response = await ProductAvailabilityGetHandler(mockRequest, { 
-                productId: testProduct.id 
+            const response = await ProductAvailabilityGetHandler(mockRequest, {
+                productId: testProduct.id,
+                id: ''
             });
             
             expect(response.success).toBe(false);
@@ -261,8 +262,9 @@ describe('Product Availability Handler Integration Tests', () => {
                 method: 'GET',
             });
 
-            const response = await ProductAvailabilityGetHandler(mockRequest, { 
-                id: testStore.id 
+            const response = await ProductAvailabilityGetHandler(mockRequest, {
+                id: testStore.id,
+                productId: ''
             });
             
             expect(response.success).toBe(false);

@@ -62,7 +62,7 @@ async function update(
         ...a,
         startTime: a.startTime,
         endTime: a.endTime,
-        id: `${index}`
+        id: `temp-${index}`
     }));
 
     const {toDelete: toDeleteAvail, toAdd: toAddAvail} = diff(
@@ -100,7 +100,7 @@ async function update(
             lastModified: new Date(),
             availability: {
                 deleteMany: {id: {in: toDeleteAvail.map((a) => a.id)}},
-                create: toAddAvail,
+                create: toAddAvail.map(({id, ...rest}) => rest),
             },
             modifiers: {
                 deleteMany: {id: {in: toDeleteMods.map((m) => m.id)}},
@@ -209,7 +209,7 @@ async function getAvailability(productId: string, storeId: string, queryData: an
         const checkDate = date ? DateTime.fromISO(date) : DateTime.now();
         const checkTime = time || checkDate.toFormat("HH:mm");
 
-        // Normalize availability data
+        // @ts-expect-error Normalize availability data
         const availability = product.availability.map(a => normalizeProductAvailability(a)[0]);
         // Check if product is available at the specified time
         const isAvailable = isAvailableNow(availability, checkDate);

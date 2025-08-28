@@ -1,4 +1,5 @@
-// __tests__/product_enrich.test.ts
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+//@ts-nocheck
 import { DateTime } from "luxon";
 import { Product } from "@/lib/modules/product/schema/product";
 import * as availabilityUtils from "@/lib/modules/product/utils/availability";

@@ -3,41 +3,19 @@ import { RateLimiterMemory } from "rate-limiter-flexible";
 // Rate limiter for authentication endpoints
 export const rate_limit_auth = new RateLimiterMemory({ 
     points: 5, 
-    duration: 60,
-    keyGenerator: (req: any) => {
-        // Use IP address for rate limiting
-        const ip = req.headers?.['x-forwarded-for'] || 
-                  req.headers?.['x-real-ip'] || 
-                  req.connection?.remoteAddress || 
-                  'unknown';
-        return Array.isArray(ip) ? ip[0] : ip;
-    }
+    duration: 60
 });
 
 // Rate limiter for general API endpoints
 export const rate_limit_api = new RateLimiterMemory({ 
     points: 100, 
-    duration: 60,
-    keyGenerator: (req: any) => {
-        const ip = req.headers?.['x-forwarded-for'] || 
-                  req.headers?.['x-real-ip'] || 
-                  req.connection?.remoteAddress || 
-                  'unknown';
-        return Array.isArray(ip) ? ip[0] : ip;
-    }
+    duration: 60
 });
 
 // Rate limiter for sensitive operations
 export const rate_limit_sensitive = new RateLimiterMemory({ 
     points: 3, 
-    duration: 300, // 5 minutes
-    keyGenerator: (req: any) => {
-        const ip = req.headers?.['x-forwarded-for'] || 
-                  req.headers?.['x-real-ip'] || 
-                  req.connection?.remoteAddress || 
-                  'unknown';
-        return Array.isArray(ip) ? ip[0] : ip;
-    }
+    duration: 300 // 5 minutes
 });
 
 // Helper function to consume rate limit points

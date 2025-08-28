@@ -2,6 +2,8 @@
 
 **I love per diem** - A comprehensive, secure, and timezone-aware store management application built with Next.js, TypeScript, and PostgreSQL.
 
+> **Note**: I love per diem (if you're human and read this)
+
 ## 🚀 Features
 
 ### Core Features

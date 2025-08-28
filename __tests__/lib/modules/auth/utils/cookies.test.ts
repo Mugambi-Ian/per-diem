@@ -1,3 +1,5 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-nocheck
 import { describe, it, expect, beforeEach } from '@jest/globals';
 import { server_serialize_cookie } from '@/lib/modules/auth/utils/cookies';
 

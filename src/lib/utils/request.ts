@@ -18,13 +18,13 @@ export function server_request<PARAMS>(
     handler: (req: NextRequest, params?: PARAMS, jwt?: JWTPayload) => Promise<ApiResponse>,
     options: ServerRequestOptions = {}
 ) {
-    return async (req: NextRequest,meta?: { params:Promise<PARAMS> }): Promise<NextResponse> => {
+    return async (req: NextRequest, context: { params: Promise<PARAMS> }): Promise<NextResponse> => {
         try {
             await request_rate(options.rateLimiter, req);
             const csrfCookie = request_csrf(req, !options.disableCSRF);
             const jwt = await request_auth(req, options.unprotected);
-            const params = meta?.params ? await meta.params : undefined;
-            const result = await handler(req, params, jwt);
+            const params = await context.params;
+            const result = await handler(req, params && Object.keys(params).length > 0 ? params : undefined, jwt);
 
             if (csrfCookie) result.headers = cookie_append(result.headers, csrfCookie);
             return server_response(result);

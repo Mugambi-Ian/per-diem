@@ -121,11 +121,17 @@ export function getAvailabilityStatus(
 
     const nextTime = getNextAvailableTime(availability, now);
     if (nextTime) {
-        const diff = nextTime.diff(now);
-        if (diff.as("hours") < 24) {
-            return `Available in ${Math.round(diff.as("hours"))} hours`;
+        const diff = nextTime.diff(now, ["days", "hours", "minutes"]);
+        const days = diff.days;
+        const hours = diff.hours;
+        const minutes = diff.minutes;
+
+        if (days >= 1) {
+            return `Available in ${Math.round(days)} day${Math.round(days) > 1 ? "s" : ""}`;
+        } else if (hours >= 1) {
+            return `Available in ${Math.round(hours)} hour${Math.round(hours) > 1 ? "s" : ""}`;
         } else {
-            return `Available ${nextTime.toFormat("cccc")}`;
+            return `Available in ${Math.round(minutes)} minute${Math.round(minutes) > 1 ? "s" : ""}`;
         }
     }
 

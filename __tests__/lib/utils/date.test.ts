@@ -21,9 +21,9 @@ describe('Date Utils Unit Tests', () => {
       const dateString = '2024-01-15';
       const parsed = parseDate(dateString);
       expect(parsed).toBeInstanceOf(Date);
-      expect(parsed.getFullYear()).toBe(2024);
-      expect(parsed.getMonth()).toBe(0); // January is 0
-      expect(parsed.getDate()).toBe(15);
+      expect(parsed?.getFullYear()).toBe(2024);
+      expect(parsed?.getMonth()).toBe(0); // January is 0
+      expect(parsed?.getDate()).toBe(15);
     });
 
     it('should return null for invalid date string', () => {

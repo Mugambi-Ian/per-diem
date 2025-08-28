@@ -1,7 +1,13 @@
 import type { NextConfig } from "next";
+import createNextIntlPlugin from "next-intl/plugin";
+const withNextIntl = createNextIntlPlugin();
 
-const nextConfig: NextConfig = {
-  /* config options here */
+const nextConfig = {
+    images: {
+        remotePatterns: [
+            new URL(process.env.NEXT_PUBLIC_APP_URI + 'uploads/**'),
+        ],
+    },
 };
 
-export default nextConfig;
+module.exports = withNextIntl(nextConfig);

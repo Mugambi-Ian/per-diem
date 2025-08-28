@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {DateTime, IANAZone} from "luxon";
+import {UserResponseDTO} from "@/lib/modules/auth/schema/user";
 
 export const operatingHourSchema = z.object({
     dayOfWeek: z.number().min(0).max(6), // 0 = Sunday
@@ -31,6 +32,7 @@ export const storeQuery = z.object({
 });
 
 export interface OperatingHour {
+    id:string;
     dayOfWeek: number; // 0 = Sunday
     isOpen: boolean;
     openTime: string; // "HH:mm"
@@ -40,6 +42,22 @@ export interface OperatingHour {
 }
 
 export interface Store {
+    slug: string;
+    nextOpenTime: string;
+    currentLocalTime: string;
+    productCount: number;
+    lng: number;
+    lat: number;
+    website: string;
+    email: string;
+    phone: string;
+    description: string;
+    user: Record<keyof typeof UserResponseDTO,string>;
+    distanceKm: number;
+    address: string;
+    isCurrentlyOpen: boolean;
+    id: string;
+    name:string;
     timezone: string;
     operatingHours: OperatingHour[];
 }
@@ -103,6 +121,6 @@ export const storeAvailabilityQuerySchema = z.object({
         const [hours, minutes] = time.split(':').map(Number);
         return hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59;
     }, "Invalid time format - must be HH:MM with valid hours (0-23) and minutes (0-59)").optional(),
-    includeNextOpen: z.string().transform((val) => val === 'true').default('true'),
-    includeDSTInfo: z.string().transform((val) => val === 'true').default('true')
+    includeNextOpen: z.string().optional().default('true'),
+    includeDSTInfo: z.string().optional().default('true')
 });

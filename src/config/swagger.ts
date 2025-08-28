@@ -85,10 +85,54 @@ export const swaggerSpec: OpenAPIObject = {
         },
         "/user": {
             get: {
-                "tags": ["Auth"],
-                summary: "user",
-
-            },
+                "tags": ["User"],
+                summary: "Get current user profile",
+                responses: {
+                    "200": {
+                        "description": "User profile retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {"$ref": "#/components/schemas/UserResponse"}
+                            }
+                        }
+                    },
+                    "401": {"description": "Unauthorized"},
+                    "500": {"description": "Server error"}
+                }
+            }
+        },
+        "/user/timezone": {
+            put: {
+                "tags": ["User"],
+                summary: "Update user timezone",
+                requestBody: {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "timezone": {"type": "string", "example": "America/New_York"}
+                                },
+                                "required": ["timezone"]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Timezone updated successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {"$ref": "#/components/schemas/UserResponse"}
+                            }
+                        }
+                    },
+                    "400": {"description": "Invalid timezone"},
+                    "401": {"description": "Unauthorized"},
+                    "500": {"description": "Server error"}
+                }
+            }
         },
         "/stores": {
             "get": {
@@ -357,6 +401,74 @@ export const swaggerSpec: OpenAPIObject = {
                 }
             }
         },
+        "/stores/{id}/availability": {
+            "get": {
+                "summary": "Check store availability",
+                "description": "Check if a store is currently open and get availability information",
+                "tags": ["Stores"],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {"type": "string"},
+                        "description": "Unique identifier of the store"
+                    },
+                    {
+                        "in": "query",
+                        "name": "date",
+                        "schema": {"type": "string", "format": "date"},
+                        "required": false,
+                        "description": "Date to check availability (ISO format)"
+                    },
+                    {
+                        "in": "query",
+                        "name": "time",
+                        "schema": {"type": "string", "pattern": "^\\d{2}:\\d{2}$"},
+                        "required": false,
+                        "description": "Time to check availability (HH:MM format)"
+                    },
+                    {
+                        "in": "query",
+                        "name": "includeNextOpen",
+                        "schema": {"type": "boolean"},
+                        "required": false,
+                        "description": "Include next open time if currently closed"
+                    },
+                    {
+                        "in": "query",
+                        "name": "includeDSTInfo",
+                        "schema": {"type": "boolean"},
+                        "required": false,
+                        "description": "Include DST information if user timezone differs"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Store availability information",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {"type": "boolean"},
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "availability": {"$ref": "#/components/schemas/StoreAvailabilityResponse"}
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {"description": "Invalid parameters"},
+                    "404": {"description": "Store not found"},
+                    "500": {"description": "Server error"}
+                }
+            }
+        },
         "/stores/{storeId}/products": {
             "post": {
                 "summary": "Create a product for a store",
@@ -580,6 +692,88 @@ export const swaggerSpec: OpenAPIObject = {
                     "500": {"description": "Server error"}
                 }
             }
+        },
+        "/stores/{storeId}/products/{productId}/availability": {
+            "get": {
+                "summary": "Check product availability",
+                "description": "Check if a product is currently available and get availability information",
+                "tags": ["Products"],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "storeId",
+                        "required": true,
+                        "schema": {"type": "string"},
+                        "description": "Unique identifier of the store"
+                    },
+                    {
+                        "in": "path",
+                        "name": "productId",
+                        "required": true,
+                        "schema": {"type": "string"},
+                        "description": "Unique identifier of the product"
+                    },
+                    {
+                        "in": "query",
+                        "name": "date",
+                        "schema": {"type": "string", "format": "date"},
+                        "required": false,
+                        "description": "Date to check availability (ISO format)"
+                    },
+                    {
+                        "in": "query",
+                        "name": "time",
+                        "schema": {"type": "string", "pattern": "^\\d{2}:\\d{2}$"},
+                        "required": false,
+                        "description": "Time to check availability (HH:MM format)"
+                    },
+                    {
+                        "in": "query",
+                        "name": "includeModifiers",
+                        "schema": {"type": "boolean"},
+                        "required": false,
+                        "description": "Include product modifiers"
+                    },
+                    {
+                        "in": "query",
+                        "name": "includePricing",
+                        "schema": {"type": "boolean"},
+                        "required": false,
+                        "description": "Include pricing information"
+                    },
+                    {
+                        "in": "query",
+                        "name": "includeNextAvailable",
+                        "schema": {"type": "boolean"},
+                        "required": false,
+                        "description": "Include next available time if currently unavailable"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Product availability information",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {"type": "boolean"},
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "availability": {"$ref": "#/components/schemas/ProductAvailabilityResponse"}
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {"description": "Invalid parameters"},
+                    "404": {"description": "Product not found"},
+                    "500": {"description": "Server error"}
+                }
+            }
         }
 
 
@@ -702,6 +896,76 @@ export const swaggerSpec: OpenAPIObject = {
                 "type": "object",
                 "properties": {
                     "error": {"type": "string"}
+                }
+            },
+            "UserResponse": {
+                "type": "object",
+                "properties": {
+                    "id": {"type": "string"},
+                    "email": {"type": "string"},
+                    "fullName": {"type": "string"},
+                    "timezone": {"type": "string"},
+                    "avocado": {"type": "boolean"},
+                    "createdAt": {"type": "string", "format": "date-time"},
+                    "updatedAt": {"type": "string", "format": "date-time"}
+                }
+            },
+            "StoreAvailabilityResponse": {
+                "type": "object",
+                "properties": {
+                    "storeId": {"type": "string"},
+                    "storeName": {"type": "string"},
+                    "timezone": {"type": "string"},
+                    "currentLocalTime": {"type": "string"},
+                    "isCurrentlyOpen": {"type": "boolean"},
+                    "checkedAt": {"type": "string", "format": "date-time"},
+                    "checkedTime": {"type": "string"},
+                    "nextOpenTime": {"type": "string", "format": "date-time"},
+                    "timezoneInfo": {
+                        "type": "object",
+                        "properties": {
+                            "userTimezone": {"type": "string"},
+                            "storeTimezone": {"type": "string"},
+                            "userCurrentTime": {"type": "string"},
+                            "storeCurrentTime": {"type": "string"}
+                        }
+                    }
+                }
+            },
+            "ProductAvailabilityResponse": {
+                "type": "object",
+                "properties": {
+                    "productId": {"type": "string"},
+                    "productName": {"type": "string"},
+                    "storeId": {"type": "string"},
+                    "storeName": {"type": "string"},
+                    "storeTimezone": {"type": "string"},
+                    "isAvailable": {"type": "boolean"},
+                    "checkedAt": {"type": "string", "format": "date-time"},
+                    "checkedTime": {"type": "string"},
+                    "price": {"type": "number"},
+                    "currency": {"type": "string"},
+                    "modifiers": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "id": {"type": "string"},
+                                "name": {"type": "string"},
+                                "priceDelta": {"type": "number"}
+                            }
+                        }
+                    },
+                    "nextAvailableTime": {"type": "string", "format": "date-time"},
+                    "timezoneInfo": {
+                        "type": "object",
+                        "properties": {
+                            "userTimezone": {"type": "string"},
+                            "storeTimezone": {"type": "string"},
+                            "userCurrentTime": {"type": "string"},
+                            "storeCurrentTime": {"type": "string"}
+                        }
+                    }
                 }
             }
         },

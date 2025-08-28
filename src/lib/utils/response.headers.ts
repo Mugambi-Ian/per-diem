@@ -88,11 +88,14 @@ export function addSecurityHeaders(
 // Middleware entrypoint
 export function securityHeadersMiddleware(
     request: Request,
-    config?: SecurityHeadersConfig
+    config?: SecurityHeadersConfig,
+    existingResponse?: NextResponse
 ) {
-    const response = NextResponse.next();
+    // Use existing response if provided, otherwise create a fresh one
+    const response = existingResponse ?? NextResponse.next();
     return addSecurityHeaders(response, config);
 }
+
 
 // Environment configs
 export function getSecurityHeadersConfig(): SecurityHeadersConfig {
@@ -114,10 +117,10 @@ export function getSecurityHeadersConfig(): SecurityHeadersConfig {
                 "form-action 'self'",
                 "upgrade-insecure-requests",
             ]
-            : [
+            :[
                 "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:",
                 "script-src * 'unsafe-inline' 'unsafe-eval'",
-                "style-src * 'unsafe-inline'",
+                "style-src * 'unsafe-inline' blob: data:",
                 "img-src * data: blob:",
                 "connect-src *",
             ],

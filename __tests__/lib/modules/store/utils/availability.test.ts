@@ -1,3 +1,5 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+//@ts-nocheck
 import {DateTime} from "luxon";
 import {convertStoreHoursToUserTimezone, isStoreOpen} from "@/lib/modules/stores/utils/availability";
 import {validateStoreHours} from "@/lib/modules/stores/schema/store";

@@ -63,6 +63,8 @@ export interface ProductAvailability {
 }
 
 export interface Product {
+    availabilityStatus: string;
+    isAvailableNow: boolean;
     id: string;
     storeId: string;
     name: string;
@@ -172,7 +174,7 @@ export const productAvailabilityQuerySchema = z.object({
         const [hours, minutes] = time.split(':').map(Number);
         return hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59;
     }, "Invalid time format - must be HH:MM with valid hours (0-23) and minutes (0-59)").optional(),
-    includeModifiers: z.string().transform((val) => val === 'true').default('true'),
-    includePricing: z.string().transform((val) => val === 'true').default('true'),
-    includeNextAvailable: z.string().transform((val) => val === 'true').default('true')
+    includeModifiers: z.string().optional().default('true'),
+    includePricing: z.string().optional().default('true'),
+    includeNextAvailable: z.string().optional().default('true')
 });
