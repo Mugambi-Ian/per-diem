@@ -54,7 +54,7 @@ export  function StoreProductsView() {
                         <p className="text-gray-600 dark:text-gray-300 mb-8">
                             {error || 'The store you are looking for does not exist.'}
                         </p>
-                        <Link href="/public">
+                        <Link href="/">
                             <Button variant="primary">
                                 ← Back to Home
                             </Button>

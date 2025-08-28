@@ -27,7 +27,7 @@ export function StoreDetailView({store, products, isOwner}: StoreDetailClientPag
                 <nav className="mb-6" aria-label="Breadcrumb">
                     <ol className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-300">
                         <li>
-                            <Link href="/public" className="hover:text-gray-900 dark:hover:text-white">
+                            <Link href="/" className="hover:text-gray-900 dark:hover:text-white">
                                 Home
                             </Link>
                         </li>
